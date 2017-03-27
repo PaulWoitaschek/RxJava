@@ -24,9 +24,11 @@ import org.junit.*;
 import io.reactivex.*;
 import io.reactivex.Observable;
 import io.reactivex.disposables.*;
+import io.reactivex.exceptions.OnErrorNotImplementedException;
 import io.reactivex.exceptions.TestException;
 import io.reactivex.functions.*;
 import io.reactivex.internal.operators.single.SingleInternalHelper;
+import io.reactivex.plugins.RxJavaPlugins;
 import io.reactivex.schedulers.Schedulers;
 import io.reactivex.subscribers.TestSubscriber;
 
@@ -577,5 +579,26 @@ public class SingleTest {
             .assertFailure(RuntimeException.class)
             .assertErrorMessage("some error");
     }
-}
 
+    @Test
+    public void testThrowInConsumerOnErrors() {
+        final AtomicReference<Throwable> error = new AtomicReference<Throwable>();
+        try {
+            RxJavaPlugins.setErrorHandler(new Consumer<Throwable>() {
+                @Override
+                public void accept(Throwable throwable) {
+                    error.set(throwable);
+                }
+            });
+            Single.just(0).subscribe(new Consumer<Integer>() {
+                @Override
+                public void accept(Integer integer) throws Exception {
+                    throw new RuntimeException();
+                }
+            });
+            assertTrue(error.get() instanceof OnErrorNotImplementedException);
+        } finally {
+            RxJavaPlugins.reset();
+        }
+    }
+}
